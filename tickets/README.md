@@ -23,7 +23,23 @@ Not cut yet. Cut after M1 is done so they reflect what was actually built.
 
 ## Conventions for every ticket
 
+The full workflow (specification → implementation → validation → replanning) is in [`CLAUDE.md`](../CLAUDE.md).
+
 - Build and all tests green: `dotnet build` and `dotnet test` at the repository root.
 - No test calls Azure.
 - No code, packages or folders for later milestones or Phase 2 ("not in this ticket" lists are binding).
 - One ticket = one commit (or a small series), message references the ticket id, e.g. `M1-02: ...`.
+
+## Validation log
+
+Filled at the end of each milestone (see CLAUDE.md → Validation).
+
+| Milestone | Date | Checked | Open / not checkable here |
+|---|---|---|---|
+
+## Replanning log
+
+Filled between milestones (see CLAUDE.md → Replanning).
+
+| After | Date | Learnings | Spec / roadmap changes |
+|---|---|---|---|
