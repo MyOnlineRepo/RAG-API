@@ -147,7 +147,7 @@ DI registration lives in `Infrastructure` as `services.AddCloudKnowledge(configu
 | Chat model | a small, inexpensive chat model; the deployment name is configuration only |
 | Tests | xUnit, `Microsoft.AspNetCore.Mvc.Testing` (`WebApplicationFactory`) |
 
-**Verify in ticket 1:** the current package name and preview status of the VectorData InMemory connector.
+**Verify in the first M2 ticket (vector store):** the current package name and preview status of the VectorData InMemory connector.
 It ships from the Semantic Kernel repository/namespace. Talking point: only the connector is used,
 not Semantic Kernel's orchestration.
 
