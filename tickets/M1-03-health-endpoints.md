@@ -21,6 +21,15 @@ In M1 the API is live but **not ready** — which is correct, because no index e
 - Response body: JSON with overall status and the check description (small custom `ResponseWriter`),
   so the demo can show *why* the API is not ready.
 
+## Implementation notes
+
+- `IndexState` exposes an immutable `IndexSnapshot` (`Current`); transitions swap it atomically, so the
+  readiness check never sees a half-updated state.
+- `MarkIndexing()` and `MarkFailed()` keep the last successful chunk count and timestamp; `LastIndexedAt`
+  comes from an injected `TimeProvider` (testable).
+- `IndexState` and `TimeProvider.System` are registered in `AddCloudKnowledge()`; the health check and the
+  JSON response writer live in `Api/Health`.
+
 ## Not in this ticket
 
 - Any code that sets the state to `Indexing` / `Ready` (M2 indexing service).
@@ -28,8 +37,8 @@ In M1 the API is live but **not ready** — which is correct, because no index e
 
 ## Acceptance criteria
 
-- [ ] Integration test: `/health/live` returns 200.
-- [ ] Integration test: `/health/ready` returns 503 with status `NotStarted` in the body on a fresh app.
-- [ ] Integration test: after `IndexState.MarkReady(10)` (resolved from the test host), `/health/ready` returns 200.
-- [ ] Integration test: after `MarkFailed("boom")`, `/health/ready` returns 503 and the body contains `boom`.
-- [ ] Unit tests for `IndexState` transitions.
+- [x] Integration test: `/health/live` returns 200.
+- [x] Integration test: `/health/ready` returns 503 with status `NotStarted` in the body on a fresh app.
+- [x] Integration test: after `IndexState.MarkReady(10)` (resolved from the test host), `/health/ready` returns 200.
+- [x] Integration test: after `MarkFailed("boom")`, `/health/ready` returns 503 and the body contains `boom`.
+- [x] Unit tests for `IndexState` transitions.

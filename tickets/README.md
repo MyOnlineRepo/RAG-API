@@ -12,7 +12,7 @@ Done when: the API starts, `/health/live` is healthy, and the author has reviewe
 |---|---|---|---|
 | M1-01 | [Solution skeleton](M1-01-solution-skeleton.md) | — | done |
 | M1-02 | [Configuration and Azure OpenAI wiring](M1-02-configuration-and-azure-openai.md) | M1-01 | done |
-| M1-03 | [Index state and health endpoints](M1-03-health-endpoints.md) | M1-02 | open |
+| M1-03 | [Index state and health endpoints](M1-03-health-endpoints.md) | M1-02 | done |
 | M1-04 | [Knowledge base drafts](M1-04-knowledge-base.md) | M1-01 (guard test only) | open |
 
 M1-04 can be worked on in parallel with M1-02 and M1-03; only its guard test needs the test project from M1-01.
