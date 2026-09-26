@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CloudKnowledge.Application\CloudKnowledge.Application.csproj" />
+  </ItemGroup>
+
+</Project>

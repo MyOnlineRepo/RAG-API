@@ -35,8 +35,8 @@ structure instead of deciding structure again.
 
 ## Acceptance criteria
 
-- [ ] `dotnet build` succeeds with zero warnings.
-- [ ] `dotnet test` runs and passes the smoke test.
-- [ ] `dotnet run --project src/CloudKnowledge.Api` starts and listens.
-- [ ] Project reference graph matches §5 (no `Application → Infrastructure`, no `Application → Api`).
-- [ ] `.cache/` is git-ignored.
+- [x] `dotnet build` succeeds with zero warnings.
+- [x] `dotnet test` runs and passes the smoke test.
+- [x] `dotnet run --project src/CloudKnowledge.Api` starts and listens.
+- [x] Project reference graph matches §5 (no `Application → Infrastructure`, no `Application → Api`).
+- [x] `.cache/` is git-ignored.
