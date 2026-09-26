@@ -6,6 +6,31 @@ a local Markdown knowledge base, and returns the sources it used.
 
 This document is the single source of truth for scope. Anything not listed here is out of scope.
 
+## 0. Phases
+
+The project is built in two phases. **Phase 1 is a complete, demoable product on its own** — the API is
+driven via Scalar UI / `.http` files. Phase 2 only starts once Phase 1's acceptance scenario (§18) passes.
+
+| Phase | Content | Status |
+|---|---|---|
+| **1 — Backend** | Everything in §1–§18: knowledge base, API, RAG, evaluation, tests, README | specified, in scope |
+| **2 — Frontend** | A small UI on top of the Phase 1 API (§21) | placeholder, specified later |
+
+Phase 1 is split into milestones; each ends in a working, testable state:
+
+| Milestone | Delivers | Spec sections | Done when |
+|---|---|---|---|
+| **M1 — Foundation** | Solution skeleton, configuration, Azure OpenAI wiring, health endpoints, knowledge base drafts | §4, §5, §6, §12, §13, §11 (health) | API starts, `/health/live` is healthy, `docs/` reviewed by the author |
+| **M2 — Retrieval** | Chunker, embedding cache, indexing service, vector store, readiness, `GET /search`, `POST /index` | §7, §8, §9, §11 (search, index) | Demo step 2 (§18) works; chunker and cache tests pass |
+| **M3 — Generation** | Prompt builder, `MinScore` guard, chat call, citation parser, `POST /ask`, logging | §10, §11 (ask), §14 | Demo steps 3–6 work (with a provisional `MinScore`); RagService tests pass |
+| **M4 — Evaluation & polish** | `CloudKnowledge.Eval`, `questions.json`, calibrated `MinScore`, integration tests, README | §15, §16, §17 | Full demo script passes with the calibrated `MinScore`; README complete |
+
+M2 is deliberately retrieval-only: `/search` can be demoed and evaluated before any chat model is involved
+("retrieval ≠ generation").
+
+**Phase 1 must not anticipate Phase 2.** No CORS, no UI-specific endpoints, no streaming — the API contract in
+§11 is final for Phase 1. Anything Phase 2 needs is added in Phase 2.
+
 ---
 
 ## 1. Goals
@@ -19,7 +44,8 @@ This document is the single source of truth for scope. Anything not listed here 
 
 ## 2. Non-goals
 
-- No frontend, no agents, no LangChain / LangGraph / Semantic Kernel orchestration.
+- No frontend in Phase 1 (see §0 and §21).
+- No agents, no LangChain / LangGraph / Semantic Kernel orchestration.
 - No deployment to Azure, no Dockerfile, no Bicep, no CI/CD pipeline. The API runs locally only.
 - No authentication on the demo API itself.
 - No persistent vector database, no Redis, no Cosmos DB, no message bus.
@@ -379,7 +405,7 @@ Integration tests (`WebApplicationFactory` with fakes):
 
 The project is done when all six steps work against a real Azure OpenAI resource and all tests pass.
 
-## 19. Backlog (explicitly not in the MVP)
+## 19. Backlog (explicitly not in Phase 1)
 
 - Second chunking strategy (fixed size + overlap) behind `IChunkingStrategy`, compared via the evaluation.
 - Azure AI Search as the vector store; vector vs. hybrid search comparison.
@@ -401,3 +427,16 @@ The project is done when all six steps work against a real Azure OpenAI resource
 | 9 | Separate Api / Application / Infrastructure projects | Folders in one project; single Core library | Author's choice; DI extension shared by Api and Eval |
 | 10 | Index on startup, readiness gate, hash-keyed embedding cache incl. model name | No cache; manual only | Fast restarts, no repeated cost, mirrors CloudStore's own health model |
 | 11 | .NET 10, Minimal APIs, M.E.AI, `DefaultAzureCredential`, `text-embedding-3-small`, TopK 5 | — | Current, idiomatic defaults |
+
+---
+
+## 21. Phase 2 — Frontend (placeholder)
+
+Not specified yet. To be decided in a separate design interview once Phase 1 is done. Open questions:
+
+- Technology: Angular (matches the fictional CloudStore stack) vs. a minimal static page served by the API.
+- Scope: question box + answer with clickable citations only, or also a "retrieval view" showing `/search` scores side by side?
+- Hosting: served by `CloudKnowledge.Api` (same origin, no CORS) vs. separate dev server.
+- API changes it may require: CORS, streaming answers, returning chunk content for citations.
+
+Until then, no code, folders or dependencies for the frontend are created.
