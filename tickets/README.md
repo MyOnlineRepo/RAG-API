@@ -13,7 +13,7 @@ Done when: the API starts, `/health/live` is healthy, and the author has reviewe
 | M1-01 | [Solution skeleton](M1-01-solution-skeleton.md) | — | done |
 | M1-02 | [Configuration and Azure OpenAI wiring](M1-02-configuration-and-azure-openai.md) | M1-01 | done |
 | M1-03 | [Index state and health endpoints](M1-03-health-endpoints.md) | M1-02 | done |
-| M1-04 | [Knowledge base drafts](M1-04-knowledge-base.md) | M1-01 (guard test only) | in review (author) |
+| M1-04 | [Knowledge base drafts](M1-04-knowledge-base.md) | M1-01 (guard test only) | done |
 
 M1-04 can be worked on in parallel with M1-02 and M1-03; only its guard test needs the test project from M1-01.
 
@@ -36,6 +36,7 @@ Filled at the end of each milestone (see CLAUDE.md → Validation).
 
 | Milestone | Date | Checked | Open / not checkable here |
 |---|---|---|---|
+| M1 | 2026-09-26 | All four tickets done. `dotnet build` 0 warnings, `dotnet test` 46/46 green. API starts with (fake) config; `/health/live` → 200; `/health/ready` → 503 `NotStarted` (expected: no index before M2). Missing config fails at startup with a clear message. Author reviewed and approved all nine `docs/` files. | No real Azure OpenAI call yet — first one happens in M2 indexing. Demo steps §18 not applicable before M2/M3. |
 
 ## Replanning log
 
@@ -43,3 +44,4 @@ Filled between milestones (see CLAUDE.md → Replanning).
 
 | After | Date | Learnings | Spec / roadmap changes |
 |---|---|---|---|
+| M1 | 2026-09-26 | (1) Deviations: empty strings instead of placeholders in `appsettings.json` (M1-02); no `live` tag needed (M1-03). (2) VectorData abstractions are stable (10.10.0), the InMemory connector is still preview (1.74.0-preview). (3) Relative `Knowledge` paths are ambiguous: `dotnet run --project` uses the project folder as content root, tests and Eval run from `bin/`. (4) SPEC §9 leaves open what readiness does during a *re*-index. (5) Once M2 adds the indexing hosted service, every test host would index `docs/` and call Azure unless the test factory fakes the AI clients by default. (6) The cloud container has no .NET SDK preinstalled. | Proposed, awaiting author approval — see replanning proposal in the conversation of 2026-09-26: R1 paths, R2 re-index readiness, R3 test factory fakes by default, R4 accept preview connector, R5 OpenAPI/Scalar in M2. |

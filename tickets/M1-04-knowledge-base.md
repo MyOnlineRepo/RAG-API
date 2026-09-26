@@ -43,5 +43,5 @@ mentions a limit (bait).
 ## Acceptance criteria
 
 - [x] All nine files exist and the guard test passes.
-- [ ] Reading the docs alone, a human can answer the §18 demo questions 3–5 and **cannot** answer question 6.
-- [ ] **The author has read and approved every document** (this ticket is not done before that).
+- [x] Reading the docs alone, a human can answer the §18 demo questions 3–5 and **cannot** answer question 6.
+- [x] **The author has read and approved every document** (this ticket is not done before that).
