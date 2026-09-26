@@ -1,10 +1,8 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace CloudKnowledge.Tests.Api;
 
-public sealed class ApplicationStartupTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class ApplicationStartupTests(CloudKnowledgeApiFactory factory) : IClassFixture<CloudKnowledgeApiFactory>
 {
     [Fact]
     public async Task Application_starts_and_answers_requests()

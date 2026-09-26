@@ -19,7 +19,8 @@ All configuration is typed, validated at startup, and the AI clients are registe
 | `KnowledgeOptions` | `Knowledge` | `DocsPath` (required, default `docs`), `EmbeddingCachePath` (required, default `.cache/embeddings.json`) |
 
 - Data annotations + `ValidateDataAnnotations()` + `ValidateOnStart()`.
-- `appsettings.json` contains every section with **placeholders** for endpoint and deployment names.
+- `appsettings.json` contains every section; endpoint and chat deployment are **empty strings**, so a missing
+  local configuration fails fast with a message pointing to user secrets (instead of a fake-looking placeholder URL).
 - `appsettings.Development.json` is not used for real values — real values go into user secrets
   (`UserSecretsId` on the Api project) or environment variables.
 
@@ -45,9 +46,9 @@ in `Infrastructure`; `Microsoft.Extensions.AI.Abstractions` in `Application`. Us
 
 ## Acceptance criteria
 
-- [ ] App fails to start with a clear validation message when e.g. `AzureOpenAI:Endpoint` is missing or not https.
-- [ ] App starts with valid (even fake) values, without network access.
-- [ ] Test: with valid in-memory config, the service provider resolves `IChatClient` and `IEmbeddingGenerator<string, Embedding<float>>`.
-- [ ] Test: with an invalid `Rag:TopK` (e.g. 0), startup validation fails.
-- [ ] Tests can replace `IChatClient` / `IEmbeddingGenerator` via `WebApplicationFactory.ConfigureTestServices` (proves M3/M4 test strategy works).
-- [ ] `git grep -i "apikey\|api-key"` finds nothing outside of docs/README prose.
+- [x] App fails to start with a clear validation message when e.g. `AzureOpenAI:Endpoint` is missing or not https.
+- [x] App starts with valid (even fake) values, without network access.
+- [x] Test: with valid in-memory config, the service provider resolves `IChatClient` and `IEmbeddingGenerator<string, Embedding<float>>`.
+- [x] Test: with an invalid `Rag:TopK` (e.g. 0), startup validation fails.
+- [x] Tests can replace `IChatClient` / `IEmbeddingGenerator` via `WebApplicationFactory.ConfigureTestServices` (proves M3/M4 test strategy works).
+- [x] `git grep -i "apikey\|api-key"` finds nothing outside of docs/README prose.
