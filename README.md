@@ -1,66 +1,66 @@
 # CloudKnowledge.Api
 
-A small **Retrieval Augmented Generation (RAG)** demo built with ASP.NET Core and Azure OpenAI.
+Eine kleine **Retrieval-Augmented-Generation-Demo (RAG)** mit ASP.NET Core und Azure OpenAI.
 
-The API answers technical questions about a fictional SaaS product called **CloudStore**. It answers only
-from a local Markdown knowledge base, not from the model's general knowledge, and it shows which documents
-each answer comes from.
+Die API beantwortet technische Fragen zu einem fiktiven SaaS-Produkt namens **CloudStore**. Sie antwortet
+ausschließlich auf Basis einer lokalen Markdown-Wissensbasis, nicht aus dem allgemeinen Wissen des Modells,
+und zeigt zu jeder Antwort, aus welchen Dokumenten sie stammt.
 
-> **Status: Phase 1, milestone M1 (Foundation) done.** The skeleton, configuration, Azure OpenAI wiring,
-> health endpoints and knowledge base exist. Retrieval (M2), answer generation (M3) and evaluation (M4) are
-> still to come. This README describes both what exists **today** and the **target** at the end of Phase 1,
-> so the two can be compared.
+> **Stand: Phase 1, Meilenstein M1 (Grundgerüst) abgeschlossen.** Grundgerüst, Konfiguration, Anbindung an
+> Azure OpenAI, Health-Endpoints und Wissensbasis sind fertig. Retrieval (M2), Antwortgenerierung (M3) und
+> Evaluation (M4) folgen noch. Dieses README beschreibt sowohl den **heutigen Stand** als auch das **Ziel**
+> am Ende von Phase 1, damit man beides vergleichen kann.
 
-- [`SPEC.md`](SPEC.md) is the full specification and source of truth.
-- [`tickets/`](tickets/README.md) contains the implementation tickets, the validation log and the replanning log.
-- [`CLAUDE.md`](CLAUDE.md) describes the spec-driven way of working.
+- [`SPEC.md`](SPEC.md): die vollständige Spezifikation und maßgebliche Quelle.
+- [`tickets/`](tickets/README.md): die Umsetzungs-Tickets, das Validation log und das Replanning log.
+- [`CLAUDE.md`](CLAUDE.md): die spec-getriebene Arbeitsweise.
 
 ---
 
-## 1. The idea in one picture
+## 1. Die Idee in einem Bild
 
-A language model answers well, but it does not know *our* documentation. RAG fixes that. Before the model
-answers, the API **looks up** the relevant pieces of documentation and gives them to the model as its only
-source.
+Ein Sprachmodell formuliert gute Antworten, kennt aber *unsere* Dokumentation nicht. RAG löst das: Bevor das
+Modell antwortet, **sucht** die API die passenden Stellen in der Dokumentation heraus und gibt sie dem Modell
+als einzige Quelle mit.
 
 ```mermaid
 flowchart LR
-    Q["Question<br/>'HTTP 503 after deployment?'"] --> R["1 · Retrieve<br/>find the most relevant<br/>documentation sections"]
-    R --> G["2 · Generate<br/>the model answers using<br/>only these sections"]
-    G --> A["Answer + sources<br/>[1] troubleshooting.md<br/>[2] monitoring.md"]
-    KB[("CloudStore docs<br/>9 Markdown files")] -.-> R
+    Q["Frage<br/>'HTTP 503 nach dem Deployment?'"] --> R["1 · Retrieve<br/>die passendsten<br/>Doku-Abschnitte finden"]
+    R --> G["2 · Generate<br/>das Modell antwortet nur<br/>auf Basis dieser Abschnitte"]
+    G --> A["Antwort + Quellen<br/>[1] troubleshooting.md<br/>[2] monitoring.md"]
+    KB[("CloudStore-Doku<br/>9 Markdown-Dateien")] -.-> R
 ```
 
-Retrieval and generation are two separate steps, and the API will expose them separately:
-`/search` shows only what was found, and `/ask` also produces an answer.
+Retrieval und Generierung sind zwei getrennte Schritte, und die API wird sie auch getrennt anbieten:
+`/search` zeigt nur, was gefunden wurde, `/ask` erzeugt zusätzlich eine Antwort.
 
 ---
 
-## 2. Current architecture (after M1)
+## 2. Aktuelle Architektur (nach M1)
 
-### 2.1 What exists and what it does
+### 2.1 Was es gibt und was es tut
 
-| Part | Status | What it does |
+| Baustein | Stand | Aufgabe |
 |---|---|---|
-| Solution with 3 projects and tests | ✅ built | Keeps the code in clear layers (see 2.2) |
-| Configuration (options classes) | ✅ built | Reads settings and **stops the app at startup** if one is missing or invalid |
-| Azure OpenAI clients | ✅ registered, ⏳ not used yet | Chat and embedding clients are ready for M2 and M3 |
-| Index state + health endpoints | ✅ built | `/health/live` and `/health/ready` report whether the API runs and whether it is ready |
-| Knowledge base `docs/` | ✅ written and approved | 9 CloudStore documents with deliberate test cases |
-| Guard test for the knowledge base | ✅ built | Makes sure later edits do not break the demo cases |
-| Retrieval, `/search`, `/ask`, evaluation | ⏳ planned | Milestones M2–M4 |
+| Solution mit 3 Projekten und Tests | ✅ gebaut | Teilt den Code in klare Schichten (siehe 2.2) |
+| Konfiguration (Options-Klassen) | ✅ gebaut | Liest die Einstellungen und **bricht den Start ab**, wenn eine fehlt oder ungültig ist |
+| Azure-OpenAI-Clients | ✅ registriert, ⏳ noch nicht genutzt | Chat- und Embedding-Client stehen für M2 und M3 bereit |
+| Index-Zustand + Health-Endpoints | ✅ gebaut | `/health/live` und `/health/ready` melden, ob die API läuft und ob sie bereit ist |
+| Wissensbasis `docs/` | ✅ geschrieben und freigegeben | 9 CloudStore-Dokumente mit gezielt eingebauten Testfällen |
+| Guard-Test für die Wissensbasis | ✅ gebaut | Stellt sicher, dass spätere Änderungen die Demo-Fälle nicht kaputt machen |
+| Retrieval, `/search`, `/ask`, Evaluation | ⏳ geplant | Meilensteine M2–M4 |
 
-### 2.2 Projects and their dependencies
+### 2.2 Projekte und ihre Abhängigkeiten
 
-The code is split into three projects. The arrows show "uses". The important rule is that **Application
-knows nothing about Azure**, so the core logic can be tested without any cloud access.
+Der Code ist auf drei Projekte verteilt. Die Pfeile bedeuten „nutzt“. Die wichtigste Regel: **Application
+weiß nichts von Azure.** Deshalb lässt sich die Kernlogik ohne Cloud-Zugang testen.
 
 ```mermaid
 flowchart TB
-    Api["<b>CloudKnowledge.Api</b><br/>Web host · Program.cs<br/>health endpoints"]
-    Infra["<b>CloudKnowledge.Infrastructure</b><br/>AddCloudKnowledge()<br/>Azure OpenAI wiring"]
-    App["<b>CloudKnowledge.Application</b><br/>options classes · IndexState<br/><i>no Azure dependency</i>"]
-    Tests["<b>CloudKnowledge.Tests</b><br/>unit + integration tests<br/>fake AI clients"]
+    Api["<b>CloudKnowledge.Api</b><br/>Web-Host · Program.cs<br/>Health-Endpoints"]
+    Infra["<b>CloudKnowledge.Infrastructure</b><br/>AddCloudKnowledge()<br/>Anbindung an Azure OpenAI"]
+    App["<b>CloudKnowledge.Application</b><br/>Options-Klassen · IndexState<br/><i>keine Azure-Abhängigkeit</i>"]
+    Tests["<b>CloudKnowledge.Tests</b><br/>Unit- + Integrationstests<br/>Fake-AI-Clients"]
 
     Api --> Infra
     Infra --> App
@@ -69,144 +69,145 @@ flowchart TB
     Tests -.-> App
 ```
 
-| Project | Contains today |
+| Projekt | Enthält heute |
 |---|---|
 | `src/CloudKnowledge.Api` | `Program.cs`, `Health/IndexReadinessHealthCheck.cs`, `Health/HealthEndpoints.cs` |
 | `src/CloudKnowledge.Application` | `Configuration/*Options.cs`, `Indexing/IndexState.cs` |
-| `src/CloudKnowledge.Infrastructure` | `ServiceCollectionExtensions.cs` with `AddCloudKnowledge()` |
-| `tests/CloudKnowledge.Tests` | test host `CloudKnowledgeApiFactory`, fakes, 46 tests |
+| `src/CloudKnowledge.Infrastructure` | `ServiceCollectionExtensions.cs` mit `AddCloudKnowledge()` |
+| `tests/CloudKnowledge.Tests` | Test-Host `CloudKnowledgeApiFactory`, Fakes, 46 Tests |
 
-### 2.3 What happens when the API starts
+### 2.3 Was beim Start der API passiert
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant P as Program.cs
     participant DI as AddCloudKnowledge()
-    participant O as Options validation
-    participant H as Health endpoints
+    participant O as Options-Validierung
+    participant H as Health-Endpoints
 
-    P->>DI: register options, IndexState, AI clients
-    Note over DI: AI clients are created lazily,<br/>so there is no call to Azure yet
-    P->>H: map /health/live and /health/ready
-    P->>O: app starts and validates all options
-    alt a setting is missing or invalid
-        O-->>P: stop with a clear message<br/>"AzureOpenAI:Endpoint is required…"
-    else all settings valid
-        O-->>P: API listens for requests
+    P->>DI: Options, IndexState und AI-Clients registrieren
+    Note over DI: AI-Clients werden erst bei Bedarf erzeugt,<br/>es gibt also noch keinen Aufruf an Azure
+    P->>H: /health/live und /health/ready einrichten
+    P->>O: App startet und prüft alle Options
+    alt eine Einstellung fehlt oder ist ungültig
+        O-->>P: Abbruch mit klarer Meldung<br/>"AzureOpenAI:Endpoint is required…"
+    else alle Einstellungen gültig
+        O-->>P: API nimmt Anfragen an
     end
 ```
 
-Checking the configuration at startup (**fail fast**) means a missing setting shows up immediately, not on
-the first user request.
+Weil die Konfiguration schon beim Start geprüft wird (**fail fast**), fällt eine fehlende Einstellung sofort
+auf und nicht erst bei der ersten Anfrage.
 
-### 2.4 Configuration
+### 2.4 Konfiguration
 
-All settings are typed classes and are validated at startup:
+Alle Einstellungen sind typisierte Klassen und werden beim Start geprüft:
 
-| Section | Settings | Validation |
+| Abschnitt | Einstellungen | Prüfung |
 |---|---|---|
-| `AzureOpenAI` | `Endpoint`, `ChatDeployment`, `EmbeddingDeployment` | required, endpoint must be `https` |
+| `AzureOpenAI` | `Endpoint`, `ChatDeployment`, `EmbeddingDeployment` | Pflichtfelder, Endpoint muss `https` sein |
 | `Rag` | `TopK` (5), `MinScore` (0.0) | 1–20, 0.0–1.0 |
 | `Chunking` | `MaxTokens` (400) | 50–2000 |
-| `Knowledge` | `DocsPath`, `EmbeddingCachePath` | required |
+| `Knowledge` | `DocsPath`, `EmbeddingCachePath` | Pflichtfelder |
 
-Real values (the endpoint and deployment names) live in **user secrets** on the developer machine and are
-never committed. `appsettings.json` contains only empty values and defaults.
+Die echten Werte (Endpoint und Deployment-Namen) liegen als **User Secrets** auf dem Entwicklerrechner und
+werden nie committet. `appsettings.json` enthält nur leere Werte und Standardwerte.
 
-### 2.5 Authentication to Azure OpenAI: no keys
+### 2.5 Authentifizierung bei Azure OpenAI: ohne Keys
 
-The API does not use an API key. It proves its identity with **Microsoft Entra ID** through
-`DefaultAzureCredential`. On a laptop that is the developer's `az login`. In Azure, the same code would
-use a **Managed Identity**, without any code change.
+Die API verwendet keinen API-Key. Sie weist sich über **Microsoft Entra ID** mit `DefaultAzureCredential`
+aus. Auf dem Laptop ist das der `az login` des Entwicklers. In Azure würde derselbe Code ohne jede Änderung
+eine **Managed Identity** verwenden.
 
 ```mermaid
 flowchart LR
-    subgraph local["Today: local development"]
-        Dev["az login<br/>(developer account)"]
+    subgraph local["Heute: lokale Entwicklung"]
+        Dev["az login<br/>(Entwickler-Konto)"]
     end
-    subgraph azure["Would work the same in Azure"]
-        MI["Managed Identity<br/>of the container"]
+    subgraph azure["Würde in Azure genauso funktionieren"]
+        MI["Managed Identity<br/>des Containers"]
     end
-    Dev --> DAC["Azure OpenAI client<br/>with DefaultAzureCredential"]
+    Dev --> DAC["Azure-OpenAI-Client<br/>mit DefaultAzureCredential"]
     MI -.-> DAC
-    DAC -->|"1 · get access token"| Entra["Microsoft Entra ID"]
-    DAC -->|"2 · call with token"| AOAI["Azure OpenAI<br/>chat + embedding deployments"]
+    DAC -->|"1 · Access Token holen"| Entra["Microsoft Entra ID"]
+    DAC -->|"2 · Aufruf mit Token"| AOAI["Azure OpenAI<br/>Chat- + Embedding-Deployments"]
 ```
 
-The signed-in identity needs the role **Cognitive Services OpenAI User** on the Azure OpenAI resource.
+Die angemeldete Identität braucht auf der Azure-OpenAI-Ressource die Rolle **Cognitive Services OpenAI User**.
 
-### 2.6 Health endpoints and index state
+### 2.6 Health-Endpoints und Index-Zustand
 
-The API has two health endpoints with different meanings:
+Die API hat zwei Health-Endpoints mit unterschiedlicher Bedeutung:
 
-- **`/health/live`**: *Is the process running?* It is always 200 while the API runs.
-- **`/health/ready`**: *Can the API answer questions?* It is 200 only when the knowledge index is built.
+- **`/health/live`**: *Läuft der Prozess?* Solange die API läuft, immer 200.
+- **`/health/ready`**: *Kann die API Fragen beantworten?* Nur 200, wenn der Wissensindex aufgebaut ist.
 
-The readiness answer comes from `IndexState`. Today nothing builds an index yet, so the state stays
-`NotStarted` and `/health/ready` correctly returns **503**. M2 adds the indexing that moves the state
-forward.
+Die Antwort von `/health/ready` kommt aus `IndexState`. Heute baut noch nichts einen Index auf. Der Zustand
+bleibt deshalb auf `NotStarted`, und `/health/ready` liefert korrekterweise **503**. Mit M2 kommt das
+Indexieren hinzu, das den Zustand weiterschaltet.
 
 ```mermaid
 stateDiagram-v2
     [*] --> NotStarted
-    NotStarted --> Indexing: indexing starts (M2)
-    Indexing --> Ready: all chunks indexed
-    Indexing --> Failed: error
-    Ready --> Indexing: re-index (POST /index, M2)
-    Failed --> Indexing: retry
+    NotStarted --> Indexing: Indexieren startet (M2)
+    Indexing --> Ready: alle Chunks indexiert
+    Indexing --> Failed: Fehler
+    Ready --> Indexing: neu indexieren (POST /index, M2)
+    Failed --> Indexing: erneuter Versuch
 
-    note right of NotStarted: today the state stays here<br/>→ /health/ready = 503
+    note right of NotStarted: heute bleibt der Zustand hier<br/>→ /health/ready = 503
     note right of Ready: /health/ready = 200
 ```
 
-Example response while not ready:
+Beispielantwort, solange die API nicht bereit ist:
 
 ```json
 { "status": "Unhealthy",
   "checks": [ { "name": "index", "status": "Unhealthy", "description": "Index status: NotStarted." } ] }
 ```
 
-This mirrors the fictional CloudStore, whose own `monitoring.md` describes the same live/ready pattern.
+Das spiegelt das fiktive CloudStore wider, dessen eigene `monitoring.md` dasselbe Live/Ready-Muster beschreibt.
 
-### 2.7 The knowledge base
+### 2.7 Die Wissensbasis
 
-`docs/` describes CloudStore, a fictional document-management SaaS (Angular, ASP.NET Core, PostgreSQL,
-Blob Storage, Container Apps, Entra ID). CloudStore exists only in these documents. Its content is written
-on purpose so that the demo can show three things:
+`docs/` beschreibt CloudStore, ein fiktives SaaS für Dokumentenverwaltung (Angular, ASP.NET Core, PostgreSQL,
+Blob Storage, Container Apps, Entra ID). CloudStore existiert nur in diesen Dokumenten. Die Dokumente sind auf
+Englisch und bewusst so geschrieben, dass die Demo drei Dinge zeigen kann:
 
 ```mermaid
 flowchart TB
-    subgraph split["1 · Answers that need several documents"]
+    subgraph split["1 · Antworten, die mehrere Dokumente brauchen"]
         direction LR
-        S1["storage.md<br/>uploads → Blob Storage"] --- Q1(("Where are uploads stored,<br/>and how does the app<br/>authenticate there?")) --- S2["security.md<br/>Blob access via<br/>Managed Identity"]
-        T1["troubleshooting.md<br/>503: what to check"] --- Q2(("HTTP 503 after<br/>deployment?")) --- T2["monitoring.md<br/>/health/ready"]
+        S1["storage.md<br/>Uploads → Blob Storage"] --- Q1(("Wo werden Uploads<br/>gespeichert, und wie<br/>authentifiziert sich<br/>die App dort?")) --- S2["security.md<br/>Blob-Zugriff per<br/>Managed Identity"]
+        T1["troubleshooting.md<br/>503: was prüfen?"] --- Q2(("HTTP 503 nach<br/>dem Deployment?")) --- T2["monitoring.md<br/>/health/ready"]
     end
-    subgraph missing["2 · Facts that are deliberately missing"]
-        M["max upload size · SLA · backup retention"]
+    subgraph missing["2 · Fakten, die bewusst fehlen"]
+        M["max. Upload-Größe · SLA · Backup-Aufbewahrung"]
     end
-    subgraph bait["3 · Bait"]
-        B["storage.md talks a lot about uploads<br/>but never mentions a limit"]
+    subgraph bait["3 · Köder"]
+        B["storage.md schreibt viel über Uploads,<br/>nennt aber nie ein Limit"]
     end
 ```
 
-A **guard test** (`KnowledgeBaseTests`) checks that the missing facts stay missing and that the split facts
-stay split. If someone writes "Files up to 100 MB…" into the docs, the test fails and names the file.
+Ein **Guard-Test** (`KnowledgeBaseTests`) stellt sicher, dass die fehlenden Fakten fehlen und die verteilten
+Fakten verteilt bleiben. Schreibt jemand „Files up to 100 MB…“ in die Doku, schlägt der Test fehl und nennt
+die Datei.
 
 ---
 
-## 3. Target architecture (end of Phase 1)
+## 3. Zielarchitektur (Ende von Phase 1)
 
-### 3.1 Components
+### 3.1 Komponenten
 
-Green parts exist today. Grey parts are still planned, and the label shows the milestone that adds them.
-Arrows mean "calls" or "uses".
+Grüne Teile gibt es schon. Graue Teile sind noch geplant, in Klammern steht der Meilenstein, der sie bringt.
+Die Pfeile bedeuten „ruft auf“ oder „nutzt“.
 
 ```mermaid
 flowchart TB
-    User(["Developer · Scalar UI / .http files"])
+    User(["Entwickler · Scalar UI / .http-Dateien"])
 
-    subgraph api["CloudKnowledge.Api — HTTP endpoints"]
+    subgraph api["CloudKnowledge.Api — HTTP-Endpoints"]
         direction LR
         Health["/health/live<br/>/health/ready"]
         Index["POST /index<br/>(M2)"]
@@ -214,18 +215,18 @@ flowchart TB
         Ask["POST /ask<br/>(M3)"]
     end
 
-    subgraph app["CloudKnowledge.Application — core logic, no Azure"]
+    subgraph app["CloudKnowledge.Application — Kernlogik, kein Azure"]
         direction LR
         State["IndexState"]
-        Rag["RagService<br/>MinScore guard · prompt · citations<br/>(M3)"]
+        Rag["RagService<br/>MinScore-Schwelle · Prompt · Zitate<br/>(M3)"]
         Chunker["MarkdownChunker<br/>(M2)"]
     end
 
-    subgraph infra["CloudKnowledge.Infrastructure — talks to the outside world"]
+    subgraph infra["CloudKnowledge.Infrastructure — spricht mit der Außenwelt"]
         direction LR
-        Store[("In-memory<br/>vector store (M2)")]
-        Clients["Azure OpenAI clients<br/>chat · embeddings"]
-        Indexer["Indexing service<br/>+ embedding cache (M2)<br/><i>see 3.2</i>"]
+        Store[("In-Memory-<br/>Vector-Store (M2)")]
+        Clients["Azure-OpenAI-Clients<br/>Chat · Embeddings"]
+        Indexer["Indexing-Service<br/>+ Embedding-Cache (M2)<br/><i>siehe 3.2</i>"]
     end
 
     AOAI["Azure OpenAI"]
@@ -247,103 +248,103 @@ flowchart TB
     class Search,Ask,Index,Chunker,Rag,Indexer,Store planned
 ```
 
-### 3.2 How the index is built (M2)
+### 3.2 So wird der Index aufgebaut (M2)
 
-At startup, and whenever `POST /index` is called, the documentation is turned into searchable vectors.
-Embeddings that were computed before are loaded from a local cache, so a restart costs almost nothing.
+Beim Start und bei jedem Aufruf von `POST /index` wird die Dokumentation in durchsuchbare Vektoren umgewandelt.
+Bereits berechnete Embeddings kommen aus einem lokalen Cache, ein Neustart kostet deshalb fast nichts.
 
 ```mermaid
 flowchart LR
-    Docs[("docs/*.md")] --> Chunk["Split into chunks<br/>one per H2 section"]
-    Chunk --> Cache{"Embedding<br/>in cache?"}
-    Cache -- yes --> Store[("Vector store")]
-    Cache -- no --> Embed["Azure OpenAI<br/>embedding model"]
+    Docs[("docs/*.md")] --> Chunk["In Chunks zerlegen<br/>ein Chunk pro H2-Abschnitt"]
+    Chunk --> Cache{"Embedding<br/>im Cache?"}
+    Cache -- ja --> Store[("Vector-Store")]
+    Cache -- nein --> Embed["Azure OpenAI<br/>Embedding-Modell"]
     Embed --> Store
     Store --> Ready["IndexState = Ready<br/>/health/ready → 200"]
 ```
 
-Each chunk is one H2 section of a document, for example *troubleshooting.md > HTTP 503 after deployment*.
-Whole sections produce precise search hits and readable source references.
+Jeder Chunk ist ein H2-Abschnitt eines Dokuments, zum Beispiel *troubleshooting.md > HTTP 503 after deployment*.
+Ganze Abschnitte liefern präzise Suchtreffer und gut lesbare Quellenangaben.
 
-### 3.3 How a question will be answered (M3)
+### 3.3 So wird eine Frage beantwortet (M3)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as User
+    actor U as Nutzer
     participant API as POST /ask
-    participant E as Embedding model
-    participant V as Vector store
-    participant C as Chat model
+    participant E as Embedding-Modell
+    participant V as Vector-Store
+    participant C as Chat-Modell
 
-    U->>API: "HTTP 503 after deployment – what should I check?"
-    API->>E: turn the question into a vector
-    API->>V: find the 5 most similar chunks
-    V-->>API: chunks with scores
-    alt no chunk reaches MinScore
-        API-->>U: answered: false<br/>"The documentation does not contain this."<br/>(the chat model is not called)
-    else relevant chunks found
-        API->>C: prompt = rules + numbered chunks [1]..[n] + question
-        C-->>API: answer with markers [1] [2]
-        API-->>U: answer + citations + retrieved sources
+    U->>API: "HTTP 503 nach dem Deployment – was soll ich prüfen?"
+    API->>E: Frage in einen Vektor umwandeln
+    API->>V: die 5 ähnlichsten Chunks suchen
+    V-->>API: Chunks mit Scores
+    alt kein Chunk erreicht MinScore
+        API-->>U: answered: false<br/>„Die Dokumentation enthält das nicht.“<br/>(das Chat-Modell wird nicht aufgerufen)
+    else passende Chunks gefunden
+        API->>C: Prompt = Regeln + nummerierte Chunks [1]..[n] + Frage
+        C-->>API: Antwort mit Markern [1] [2]
+        API-->>U: Antwort + Zitate + gefundene Quellen
     end
 ```
 
-There are **two guards against hallucination**:
+Es gibt **zwei Schutzschichten gegen Halluzinationen**:
 
-1. **Deterministic:** if nothing relevant is found, the model is not asked at all.
-2. **Instruction:** the prompt tells the model to use only the given context and to say so when the answer
-   is not in it.
+1. **Deterministisch:** Wird nichts Passendes gefunden, wird das Modell gar nicht erst gefragt.
+2. **Anweisung:** Der Prompt verlangt, dass das Modell nur den mitgegebenen Kontext nutzt und es offen sagt,
+   wenn die Antwort dort nicht steht.
 
-### 3.4 Current vs. target at a glance
+### 3.4 Ist und Ziel im Überblick
 
-| Area | Today (M1) | Target (end of Phase 1) | Milestone |
+| Bereich | Heute (M1) | Ziel (Ende Phase 1) | Meilenstein |
 |---|---|---|---|
-| Solution structure | Api, Application, Infrastructure, Tests | + `CloudKnowledge.Eval` | M4 |
-| Configuration | typed, validated at startup | unchanged | ✅ |
-| Azure OpenAI | clients registered, not called | embeddings (M2), chat (M3) | M2, M3 |
-| Health | live ✅, ready always 503 | ready turns 200 after indexing | M2 |
-| Knowledge base | 9 docs + guard test ✅ | unchanged | ✅ |
-| Chunking | none | one chunk per H2 section | M2 |
-| Vector store | none | in-memory (VectorData abstraction) | M2 |
-| Endpoints | health only | `/search`, `/index`, `/ask` | M2, M3 |
-| API docs | none | OpenAPI + Scalar UI | M2 |
-| Hallucination guard | none | `MinScore` + prompt rules + citations | M3 |
-| Quality measurement | none | Recall@k, calibrated `MinScore` | M4 |
+| Solution-Struktur | Api, Application, Infrastructure, Tests | + `CloudKnowledge.Eval` | M4 |
+| Konfiguration | typisiert, beim Start geprüft | unverändert | ✅ |
+| Azure OpenAI | Clients registriert, nicht aufgerufen | Embeddings (M2), Chat (M3) | M2, M3 |
+| Health | live ✅, ready immer 503 | ready wird nach dem Indexieren 200 | M2 |
+| Wissensbasis | 9 Dokumente + Guard-Test ✅ | unverändert | ✅ |
+| Chunking | keins | ein Chunk pro H2-Abschnitt | M2 |
+| Vector-Store | keiner | In-Memory (VectorData-Abstraktion) | M2 |
+| Endpoints | nur Health | `/search`, `/index`, `/ask` | M2, M3 |
+| API-Doku | keine | OpenAPI + Scalar UI | M2 |
+| Schutz vor Halluzinationen | keiner | `MinScore` + Prompt-Regeln + Zitate | M3 |
+| Qualitätsmessung | keine | Recall@k, kalibrierter `MinScore` | M4 |
 
 ---
 
-## 4. Running it locally
+## 4. Lokal starten
 
-**Prerequisites:** .NET 10 SDK, Azure CLI, and an Azure OpenAI resource with a chat deployment and a
-`text-embedding-3-small` deployment. Your account needs the role **Cognitive Services OpenAI User** on
-that resource.
+**Voraussetzungen:** .NET 10 SDK, Azure CLI und eine Azure-OpenAI-Ressource mit einem Chat-Deployment und
+einem `text-embedding-3-small`-Deployment. Dein Konto braucht auf dieser Ressource die Rolle
+**Cognitive Services OpenAI User**.
 
 ```bash
 az login
 
-dotnet user-secrets set "AzureOpenAI:Endpoint" "https://<your-resource>.openai.azure.com/" --project src/CloudKnowledge.Api
-dotnet user-secrets set "AzureOpenAI:ChatDeployment" "<your-chat-deployment>" --project src/CloudKnowledge.Api
+dotnet user-secrets set "AzureOpenAI:Endpoint" "https://<deine-ressource>.openai.azure.com/" --project src/CloudKnowledge.Api
+dotnet user-secrets set "AzureOpenAI:ChatDeployment" "<dein-chat-deployment>" --project src/CloudKnowledge.Api
 
 dotnet build
-dotnet test          # never calls Azure
+dotnet test          # ruft nie Azure auf
 dotnet run --project src/CloudKnowledge.Api
 ```
 
-Then open `/health/live` (200) and `/health/ready` (503 until M2 adds indexing).
+Danach `/health/live` (200) und `/health/ready` aufrufen. Letzteres liefert 503, bis M2 das Indexieren bringt.
 
 ---
 
-## 5. Key decisions so far
+## 5. Die wichtigsten Entscheidungen bisher
 
-| Decision | Why |
+| Entscheidung | Warum |
 |---|---|
-| Runs locally only, no Azure deployment | Keeps the scope small. Managed Identity is explained, not deployed. |
-| `DefaultAzureCredential`, no API keys | No secrets in the repo; the same code works locally and in Azure. |
-| Three projects, `Application` free of Azure | Core logic is testable without cloud access. |
-| Validate configuration at startup | Errors appear immediately and with a clear message. |
-| Separate live and ready endpoints | "Process runs" and "can answer questions" are different things. |
-| Knowledge base with split, missing and bait facts | Shows multi-document retrieval and how the system handles questions it cannot answer. |
-| Guard test for the knowledge base | Demo cases cannot break silently. |
+| Läuft nur lokal, kein Deployment nach Azure | Hält den Umfang klein. Managed Identity wird erklärt, nicht deployt. |
+| `DefaultAzureCredential`, keine API-Keys | Keine Secrets im Repo; derselbe Code funktioniert lokal und in Azure. |
+| Drei Projekte, `Application` ohne Azure | Die Kernlogik ist ohne Cloud-Zugang testbar. |
+| Konfiguration beim Start prüfen | Fehler fallen sofort auf, mit klarer Meldung. |
+| Getrennte Live- und Ready-Endpoints | „Prozess läuft“ und „kann Fragen beantworten“ sind zwei verschiedene Dinge. |
+| Wissensbasis mit verteilten, fehlenden und Köder-Fakten | Zeigt Retrieval über mehrere Dokumente und wie das System mit unbeantwortbaren Fragen umgeht. |
+| Guard-Test für die Wissensbasis | Die Demo-Fälle können nicht unbemerkt kaputtgehen. |
 
-All decisions, including the planned ones, are in the [decision log in SPEC.md](SPEC.md#20-decision-log).
+Alle Entscheidungen, auch die geplanten, stehen im [Decision Log in SPEC.md](SPEC.md#20-decision-log).
