@@ -1,0 +1,22 @@
+# CloudKnowledge.Api — demo requests (SPEC §18). Start the API with `dotnet run --project src/CloudKnowledge.Api`.
+# API reference in the browser (Development only): http://localhost:5210/scalar
+
+@baseUrl = http://localhost:5210
+
+### Liveness — the process is running
+GET {{baseUrl}}/health/live
+
+### Readiness — healthy once the index is built
+GET {{baseUrl}}/health/ready
+
+### Rebuild the index (unchanged chunks come from the embedding cache)
+POST {{baseUrl}}/api/knowledge/index
+
+### Demo step 2 — expected at the top: deployment.md, container-apps.md
+GET {{baseUrl}}/api/knowledge/search?q=How does the deployment process work?
+
+### The 503 question — expected: troubleshooting.md, monitoring.md
+GET {{baseUrl}}/api/knowledge/search?q=The application returns HTTP 503 after a deployment. What should I check?&top=5
+
+### The upload question — expected: storage.md, security.md
+GET {{baseUrl}}/api/knowledge/search?q=Where are uploads stored and how does the application authenticate there?

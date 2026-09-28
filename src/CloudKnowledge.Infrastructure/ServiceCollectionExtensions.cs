@@ -3,6 +3,7 @@ using Azure.Identity;
 using CloudKnowledge.Application.Chunking;
 using CloudKnowledge.Application.Configuration;
 using CloudKnowledge.Application.Indexing;
+using CloudKnowledge.Application.Search;
 using CloudKnowledge.Infrastructure.Knowledge;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
@@ -17,7 +18,7 @@ namespace CloudKnowledge.Infrastructure;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers validated options, the shared index state, the indexing pipeline (chunker, document source, embedding cache, vector store, indexer) and the Azure OpenAI backed AI clients.
+    /// Registers validated options, the shared index state, the indexing pipeline (chunker, document source, embedding cache, vector store, indexer, search) and the Azure OpenAI backed AI clients.
     /// Authentication uses <see cref="DefaultAzureCredential"/> (Entra ID); no API keys.
     /// Nothing here calls Azure at startup — the first request happens when a client is used.
     /// </summary>
@@ -40,6 +41,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(sp =>
             sp.GetRequiredService<VectorStore>().GetCollection<string, KnowledgeChunk>(KnowledgeChunk.CollectionName));
         services.AddSingleton<KnowledgeIndexer>();
+        services.AddSingleton<KnowledgeSearch>();
 
         services.AddSingleton(sp =>
         {

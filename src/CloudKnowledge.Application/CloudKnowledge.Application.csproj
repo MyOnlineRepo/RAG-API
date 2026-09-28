@@ -3,6 +3,6 @@
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.10.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.12" />
-    <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" Version="10.10.0" />
+    <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" Version="10.1.0" />
   </ItemGroup>
 </Project>
