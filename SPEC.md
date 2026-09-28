@@ -129,8 +129,10 @@ eval/questions.json                Evaluation set
 ```
 
 Dependency direction: `Api → Infrastructure → Application`, `Eval → Infrastructure → Application`.
-`Application` has no Azure dependencies; it depends only on `Microsoft.Extensions.AI.Abstractions`
-and `Microsoft.Extensions.VectorData.Abstractions`.
+`Application` has no Azure dependencies. It references abstraction packages only (R7):
+`Microsoft.Extensions.AI.Abstractions`, `Microsoft.Extensions.VectorData.Abstractions`, `Microsoft.Extensions.Options`
+and `Microsoft.Extensions.Logging.Abstractions` — never Azure, OpenAI or Semantic Kernel packages. A test checks the
+assembly references of `Application`.
 
 DI registration lives in `Infrastructure` as `services.AddCloudKnowledge(configuration)` so API and Eval share it.
 
@@ -147,8 +149,12 @@ DI registration lives in `Infrastructure` as `services.AddCloudKnowledge(configu
 | Chat model | a small, inexpensive chat model; the deployment name is configuration only |
 | Tests | xUnit, `Microsoft.AspNetCore.Mvc.Testing` (`WebApplicationFactory`) |
 
-**Vector store packages (checked 2026-09-26, decision 15):** `Microsoft.Extensions.VectorData.Abstractions` is stable
-(10.10.0); the InMemory connector `Microsoft.SemanticKernel.Connectors.InMemory` is **preview only** (1.74.0-preview).
+**Vector store packages (checked 2026-09-26, corrected 2026-09-28; decisions 15, 17):**
+`Microsoft.Extensions.VectorData.Abstractions` is stable; the InMemory connector
+`Microsoft.SemanticKernel.Connectors.InMemory` is **preview only** (1.74.0-preview, newest version).
+The connector is built against Abstractions **10.1.0**, so that version is pinned: 10.10.0 removed types the connector
+uses (the solution compiles, but every vector search throws `TypeLoadException`). Abstraction and connector are
+upgraded **only together**; the search tests catch a mismatch.
 The preview connector is accepted: it lives only in `Infrastructure` behind the stable abstraction. It ships from the
 Semantic Kernel repository/namespace. Talking point: only the connector is used, not Semantic Kernel's orchestration.
 
@@ -204,15 +210,17 @@ Attribute names are illustrative; use whatever the current VectorData version pr
 
 ```
 question
-  → embed question
-  → vector search (TopK)
-  → drop results with score < MinScore
+  → KnowledgeSearch (embed question, vector search TopK) — the same retrieval as /search
+  → keep only hits with aboveThreshold (score >= MinScore)
   → none left?  → return answered=false, fixed message, no LLM call
   → build prompt with numbered context [1..n]
   → chat completion
   → parse [n] markers → citations
   → response
 ```
+
+`RagService` reuses `KnowledgeSearch` (R9): there is one retrieval path and one place where `MinScore` is applied.
+`/search` shows exactly what `/ask` retrieves — the talking point "retrieval ≠ generation" is visible in the code.
 
 ### 10.1 Prompt
 
@@ -303,7 +311,7 @@ and the refusal is in `answer` (it cannot be detected reliably; do not try).
 
 ### `POST /api/knowledge/index`
 
-Re-indexes `docs/`. Returns `200 { "documents": 9, "chunks": 47, "embeddedNew": 3, "fromCache": 44, "durationMs": 812 }`.
+Re-indexes `docs/`. Returns `200 { "documents": 9, "chunks": 67, "embeddedNew": 3, "fromCache": 64, "durationMs": 812 }`.
 Returns `409` if indexing is already running. **No authentication** — local demo only; documented in the README.
 
 ### Health
@@ -367,6 +375,10 @@ Structured `ILogger` messages (no string interpolation):
 ```
 
 - Runs retrieval only (no chat calls), using the same services and configuration as the API.
+- Runs from its build output (R11): content root / configuration base path = `AppContext.BaseDirectory`;
+  `appsettings.json` and `docs/` are copied into the output (otherwise startup fails because the working directory
+  is not the project folder). It uses its own embedding cache — the first run embeds the 67 chunks once, a negligible
+  cost — unless an absolute `Knowledge:EmbeddingCachePath` is configured.
 - Metrics:
   - **Recall@k** for answerable questions: share of expected sections found in the top k (k = 1, 3, 5).
   - **Hit rate**: share of answerable questions with at least one expected section in the top k.
@@ -384,6 +396,15 @@ and a scripted fake `IChatClient`).
 never reaches Azure. The fake embedding generator hashes the words of a text into a 1536-dimension vector:
 deterministic, and texts sharing words get similar vectors, so search tests produce meaningful rankings.
 Tests that verify the real DI registration use a separate factory without fakes and never call the clients.
+
+Test-host rules (R8):
+- Tests that drive `IndexState` or index runs themselves set `Knowledge:IndexOnStartup=false`.
+- The real-clients factory never indexes on startup (it would call Azure).
+- Every factory instance uses its own temporary embedding cache file.
+- Configuration-validation tests call `IStartupValidator.Validate()` instead of starting a host that throws
+  (`WebApplicationFactory` races when the app fails during startup).
+- Bag-of-words scores are only meaningful as **rankings** (a matching section scores ≈ 0.2). Tests that depend on
+  `MinScore` — above all the `RagService` tests — control scores explicitly (scripted vectors or a fake search result).
 
 Unit tests (minimum):
 - `MarkdownChunker`: H2 splitting, intro section, long section split at paragraphs, code blocks never split, prefix format, stable IDs.
@@ -447,6 +468,7 @@ The project is done when all six steps work against a real Azure OpenAI resource
 | 14 | Test host uses fake AI clients by default (R3) | Opt-in fakes per test | Startup indexing would otherwise call Azure from every integration test |
 | 15 | Accept the preview InMemory connector (R4) | Own cosine store; wait for a stable release | Stable abstraction, connector isolated in Infrastructure and swappable |
 | 16 | OpenAPI + Scalar UI arrive with `/search` in M2 (R5) | Add in M1 | First endpoint worth documenting |
+| 17 | Pin `VectorData.Abstractions` to the version the InMemory connector is built against (10.1.0) (R6) | Newest abstraction; own cosine store | Keeps the stable abstraction and the swappable connector; mismatches only show at runtime, the search tests catch them |
 
 ---
 

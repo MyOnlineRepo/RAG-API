@@ -1,7 +1,8 @@
 # Replanning after M2 — draft
 
-**Status:** prepared 2026-09-28, **awaiting** (a) demo step 2 against real Azure OpenAI and (b) the author's approval.
-Nothing below has been written into `SPEC.md` yet. M3 tickets are cut only after approval (CLAUDE.md → Replanning).
+**Status (2026-09-28):** R6–R9, R11 and R12 **approved by the author and written into `SPEC.md`**
+(§5, §6, §10, §11, §15, §16, decision 17); README updated to the M2 state.
+**R10 is deferred** until demo step 2 has run against real Azure OpenAI. M3 tickets are cut only after that.
 
 ## 1. What was learned
 
@@ -62,10 +63,11 @@ Nothing below has been written into `SPEC.md` yet. M3 tickets are cut only after
 
 Roadmap (§0 milestone table): **unchanged** — M3 and M4 stay as planned.
 
-## 3. After approval
+## 3. Remaining steps
 
-1. Record the real-Azure results of demo step 2 in the M2 validation log; tick the last M2-06 criterion.
-2. Write the approved R6–R12 into `SPEC.md` (§5, §6, §10, §11, §15, §16, §0, decision 17).
-3. Update the README's current-architecture section (2.x) to the M2 state (indexing, vector store, `/search`,
-   `/index`, OpenAPI/Scalar) and the Ist/Ziel table (3.4).
-4. Add the M2 row to the replanning log in `tickets/README.md`, then cut the M3 tickets.
+1. ✅ Write the approved R6–R9, R11, R12 into `SPEC.md`.
+2. ✅ Update the README's current architecture (section 2) and the Ist/Ziel table to the M2 state.
+3. ⏳ Author runs demo step 2 against real Azure OpenAI → record top-5 scores in the M2 validation log,
+   tick the last M2-06 criterion.
+4. ⏳ Decide R10 (provisional `MinScore` for M3) from those scores and write it into SPEC §0 and `appsettings.json`.
+5. ⏳ Complete the M2 row in the replanning log, then cut the M3 tickets.
