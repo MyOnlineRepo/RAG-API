@@ -17,9 +17,24 @@ Done when: the API starts, `/health/live` is healthy, and the author has reviewe
 
 M1-04 can be worked on in parallel with M1-02 and M1-03; only its guard test needs the test project from M1-01.
 
-## M2 — Retrieval · M3 — Generation · M4 — Evaluation & polish
+## M2 — Retrieval
 
-Not cut yet. Cut after M1 is done so they reflect what was actually built.
+Done when: demo step 2 (SPEC §18) works against real Azure OpenAI; chunker and cache tests pass (SPEC §0).
+
+| # | Ticket | Blocked by | Status |
+|---|---|---|---|
+| M2-01 | [Test host fakes and knowledge paths](M2-01-test-host-and-knowledge-paths.md) | — | open |
+| M2-02 | [Markdown chunker](M2-02-markdown-chunker.md) | — | open |
+| M2-03 | [Document source and embedding cache](M2-03-document-source-and-embedding-cache.md) | M2-01 | open |
+| M2-04 | [Vector store and knowledge indexer](M2-04-vector-store-and-indexer.md) | M2-02, M2-03 | open |
+| M2-05 | [Indexing on startup and `POST /index`](M2-05-startup-indexing-and-index-endpoint.md) | M2-04 | open |
+| M2-06 | [`GET /search`, OpenAPI and Scalar](M2-06-search-endpoint-and-openapi.md) | M2-05 | open |
+
+M2-01 and M2-02 are independent. The last criterion of M2-06 (demo step 2 against real Azure) needs the author.
+
+## M3 — Generation · M4 — Evaluation & polish
+
+Not cut yet. Cut after the previous milestone is done, so they reflect what was actually built.
 
 ## Conventions for every ticket
 
