@@ -1,7 +1,9 @@
 using CloudKnowledge.Application.Configuration;
+using CloudKnowledge.Infrastructure;
 using CloudKnowledge.Tests.Fakes;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -38,9 +40,15 @@ public sealed class AddCloudKnowledgeTests
     [InlineData("Chunking:MaxTokens", "10", "Chunking:MaxTokens must be between 50 and 2000")]
     public void Startup_fails_with_clear_message_for_invalid_configuration(string key, string value, string expectedMessage)
     {
-        using var factory = new RealAiClientsApiFactory().WithSetting(key, value);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(CloudKnowledgeApiFactory.ValidSettings)
+            .AddInMemoryCollection([new(key, value)])
+            .Build();
+        using var provider = new ServiceCollection().AddCloudKnowledge(configuration).BuildServiceProvider();
 
-        var exception = Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        // The same check the host runs on start for ValidateOnStart. Starting a WebApplicationFactory host that
+        // throws on startup races inside the factory (ObjectDisposedException instead of the validation error).
+        var exception = Assert.Throws<OptionsValidationException>(() => provider.GetRequiredService<IStartupValidator>().Validate());
 
         Assert.Contains(expectedMessage, exception.Message);
     }

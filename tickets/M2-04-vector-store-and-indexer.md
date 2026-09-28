@@ -29,9 +29,31 @@ One call builds the complete searchable index: load → chunk → embed → stor
 
 ## Acceptance criteria
 
-- [ ] Using fakes: after `RunAsync`, the collection holds one record per chunk of the real `docs/`, and
+- [x] Using fakes: after `RunAsync`, the collection holds one record per chunk of the real `docs/`, and
       `IndexState` is `Ready` with that chunk count.
-- [ ] Second `RunAsync`: same chunk count, `EmbeddedNew = 0`, no duplicate records.
-- [ ] Failing embedding generator → state `Failed` with the error message; exception propagates.
-- [ ] While a run is active (blocking fake), a second `RunAsync` returns `null` immediately.
-- [ ] `Application` still references no Azure package (only the VectorData and M.E.AI abstractions).
+- [x] Second `RunAsync`: same chunk count, `EmbeddedNew = 0`, no duplicate records.
+- [x] Failing embedding generator → state `Failed` with the error message; exception propagates.
+- [x] While a run is active (blocking fake), a second `RunAsync` returns `null` immediately.
+- [x] `Application` still references no Azure package (only the VectorData and M.E.AI abstractions).
+
+## Implementation notes
+
+- Packages: `Microsoft.Extensions.VectorData.Abstractions` 10.10.0 (Application),
+  `Microsoft.SemanticKernel.Connectors.InMemory` **1.74.0-preview** (Infrastructure).
+- `Application` also needs `Microsoft.Extensions.Logging.Abstractions` (10.0.12) for the structured log line
+  (SPEC §14). Abstraction package, no Azure. A test checks the assembly references of `Application`
+  (no `Azure*`, `OpenAI*`, `Microsoft.SemanticKernel*`).
+- `KnowledgeChunk` uses `required` properties and constants `CollectionName = "knowledge"`,
+  `EmbeddingDimensions = 1536`. Attribute names in VectorData 10.10: `VectorStoreKey`, `VectorStoreData`,
+  `VectorStoreVector(1536, DistanceFunction = DistanceFunction.CosineSimilarity)` — as SPEC §7.
+- Registration: `VectorStore` → `InMemoryVectorStore`, the collection via `GetCollection<string, KnowledgeChunk>`,
+  `KnowledgeIndexer` — all singletons.
+- A cancelled run is also recorded as `Failed` (with the cancellation message), so the state never stays `Indexing`.
+- The indexer tests run through the test host: real `docs/`, bag-of-words fake, real InMemory store.
+- **Deviation in an M1 test:** `Startup_fails_with_clear_message_for_invalid_configuration` failed intermittently
+  (about 1 in 3 full runs) with `ObjectDisposedException` instead of `OptionsValidationException`. Cause: a race
+  in `WebApplicationFactory`'s `DeferredHost` when the app throws during startup — it touches the already
+  disposed service provider. It surfaced now because more tests run in parallel. The test now builds the
+  service collection with `AddCloudKnowledge()` and calls `IStartupValidator.Validate()` — the exact check the
+  host runs for `ValidateOnStart`. 20 consecutive full runs green. The real host was checked manually again:
+  empty `AzureOpenAI:Endpoint` → `OptionsValidationException` with the clear message, exit code ≠ 0.

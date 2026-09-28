@@ -9,13 +9,15 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.VectorData;
+using Microsoft.SemanticKernel.Connectors.InMemory;
 
 namespace CloudKnowledge.Infrastructure;
 
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers validated options, the shared index state, the indexing building blocks (chunker, document source, embedding cache) and the Azure OpenAI backed AI clients.
+    /// Registers validated options, the shared index state, the indexing pipeline (chunker, document source, embedding cache, vector store, indexer) and the Azure OpenAI backed AI clients.
     /// Authentication uses <see cref="DefaultAzureCredential"/> (Entra ID); no API keys.
     /// Nothing here calls Azure at startup — the first request happens when a client is used.
     /// </summary>
@@ -32,6 +34,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDocumentSource, FileDocumentSource>();
         services.AddSingleton<IEmbeddingCache, JsonEmbeddingCache>();
         services.AddSingleton<EmbeddingService>();
+
+        // InMemory connector (preview, decision 15) behind the stable VectorData abstraction.
+        services.AddSingleton<VectorStore, InMemoryVectorStore>();
+        services.AddSingleton(sp =>
+            sp.GetRequiredService<VectorStore>().GetCollection<string, KnowledgeChunk>(KnowledgeChunk.CollectionName));
+        services.AddSingleton<KnowledgeIndexer>();
 
         services.AddSingleton(sp =>
         {
