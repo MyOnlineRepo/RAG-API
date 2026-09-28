@@ -52,6 +52,7 @@ Filled at the end of each milestone (see CLAUDE.md → Validation).
 | Milestone | Date | Checked | Open / not checkable here |
 |---|---|---|---|
 | M1 | 2026-09-26 | All four tickets done. `dotnet build` 0 warnings, `dotnet test` 46/46 green. API starts with (fake) config; `/health/live` → 200; `/health/ready` → 503 `NotStarted` (expected: no index before M2). Missing config fails at startup with a clear message. Author reviewed and approved all nine `docs/` files. | No real Azure OpenAI call yet — first one happens in M2 indexing. Demo steps §18 not applicable before M2/M3. |
+| M2 | 2026-09-28 | All six tickets implemented. `dotnet build` 0 warnings, `dotnet test` 106/106 green (10–20 consecutive full runs stable). "Done when" (SPEC §0): chunker and cache tests pass ✔; demo step 2 works end-to-end **with the bag-of-words fake** (index on startup → ready → search ranks `troubleshooting.md` first for the 503 query). Manually with an unreachable Azure endpoint: API starts, indexing fails cleanly, live 200 / ready 503 `Failed`, `POST /index` 500 and `/search` 503 as ProblemDetails; `/scalar` and `/openapi/v1.json` load in Development. Knowledge base: 67 chunks. | **Demo step 2 against real Azure OpenAI** (M2-06, last criterion) — needs the author's Azure resource and `az login`; top-5 scores to be recorded here. Until then M2 is not fully validated and replanning waits. |
 
 ## Replanning log
 
