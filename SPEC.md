@@ -21,7 +21,7 @@ Phase 1 is split into milestones; each ends in a working, testable state:
 | Milestone | Delivers | Spec sections | Done when |
 |---|---|---|---|
 | **M1 — Foundation** | Solution skeleton, configuration, Azure OpenAI wiring, health endpoints, knowledge base drafts | §4, §5, §6, §12, §13, §11 (health) | API starts, `/health/live` is healthy, `docs/` reviewed by the author |
-| **M2 — Retrieval** | Chunker, embedding cache, indexing service, vector store, readiness, `GET /search`, `POST /index` | §7, §8, §9, §11 (search, index) | Demo step 2 (§18) works; chunker and cache tests pass |
+| **M2 — Retrieval** | Chunker, embedding cache, indexing service, vector store, readiness, `GET /search`, `POST /index`, OpenAPI + Scalar UI | §7, §8, §9, §11 (search, index), §12 (paths) | Demo step 2 (§18) works; chunker and cache tests pass |
 | **M3 — Generation** | Prompt builder, `MinScore` guard, chat call, citation parser, `POST /ask`, logging | §10, §11 (ask), §14 | Demo steps 3–6 work (with a provisional `MinScore`); RagService tests pass |
 | **M4 — Evaluation & polish** | `CloudKnowledge.Eval`, `questions.json`, calibrated `MinScore`, integration tests, README | §15, §16, §17 | Full demo script passes with the calibrated `MinScore`; README complete |
 
@@ -117,7 +117,7 @@ fills the gap with general Azure Blob Storage knowledge.
 CloudKnowledge.sln
 src/
   CloudKnowledge.Api/              Minimal API endpoints, Program.cs, hosted indexing service, health checks
-  CloudKnowledge.Application/      RagService, MarkdownChunker, PromptBuilder, CitationParser,
+  CloudKnowledge.Application/      KnowledgeIndexer, KnowledgeSearch, RagService, MarkdownChunker, PromptBuilder, CitationParser,
                                    domain models, abstractions (IDocumentSource, IEmbeddingCache, ...)
   CloudKnowledge.Infrastructure/   Azure OpenAI wiring, VectorData InMemory collection, file-system
                                    document source, JSON embedding cache, AddCloudKnowledge(...) DI extension
@@ -147,9 +147,10 @@ DI registration lives in `Infrastructure` as `services.AddCloudKnowledge(configu
 | Chat model | a small, inexpensive chat model; the deployment name is configuration only |
 | Tests | xUnit, `Microsoft.AspNetCore.Mvc.Testing` (`WebApplicationFactory`) |
 
-**Verify in the first M2 ticket (vector store):** the current package name and preview status of the VectorData InMemory connector.
-It ships from the Semantic Kernel repository/namespace. Talking point: only the connector is used,
-not Semantic Kernel's orchestration.
+**Vector store packages (checked 2026-09-26, decision 15):** `Microsoft.Extensions.VectorData.Abstractions` is stable
+(10.10.0); the InMemory connector `Microsoft.SemanticKernel.Connectors.InMemory` is **preview only** (1.74.0-preview).
+The preview connector is accepted: it lives only in `Infrastructure` behind the stable abstraction. It ships from the
+Semantic Kernel repository/namespace. Talking point: only the connector is used, not Semantic Kernel's orchestration.
 
 ---
 
@@ -186,9 +187,14 @@ Attribute names are illustrative; use whatever the current VectorData version pr
 
 ## 9. Indexing
 
-- `KnowledgeIndexingService` (`IHostedService` / `BackgroundService`) indexes all `docs/*.md` on startup.
-- Pipeline: load → chunk → embed (via cache) → upsert into the collection.
-- Re-index replaces the collection's contents fully (delete + upsert, or new collection and swap).
+- `KnowledgeIndexer` (Application) runs the pipeline: load → chunk → embed (via cache) → upsert into the collection.
+  It depends only on abstractions (`IDocumentSource`, `IEmbeddingCache`, `IEmbeddingGenerator`, the VectorData collection).
+- `KnowledgeIndexingService` (`BackgroundService`, Api) calls the indexer once on startup when
+  `Knowledge:IndexOnStartup` is `true` (default). `POST /index` calls the same indexer.
+- Only one indexing run at a time. A second request while a run is active is rejected (`POST /index` → 409).
+- **Re-index (decision 13):** the state goes to `Indexing`, the collection is cleared and refilled, then `Ready`.
+  While `Indexing`, `/health/ready`, `/search` and `/ask` return 503. With the cache a re-index takes about a
+  second, so there is no background build-and-swap.
 - **Embedding cache:** JSON file (path configurable, default `.cache/embeddings.json`, git-ignored).
   Key = SHA-256 of `"{EmbeddingDeployment}\n{textToEmbed}"`. Only missing entries are sent to Azure.
   Changing the embedding deployment therefore invalidates the cache automatically.
@@ -317,7 +323,7 @@ Returns `409` if indexing is already running. **No authentication** — local de
   },
   "Rag": { "TopK": 5, "MinScore": 0.0 },
   "Chunking": { "MaxTokens": 400 },
-  "Knowledge": { "DocsPath": "docs", "EmbeddingCachePath": ".cache/embeddings.json" }
+  "Knowledge": { "DocsPath": "docs", "EmbeddingCachePath": ".cache/embeddings.json", "IndexOnStartup": true }
 }
 ```
 
@@ -325,6 +331,10 @@ Returns `409` if indexing is already running. **No authentication** — local de
 - The endpoint and deployment names go in `appsettings.Development.json` / user secrets / env vars;
   the committed `appsettings.json` contains placeholders only. No keys anywhere.
 - `MinScore` starts as a placeholder and is **set from the evaluation results** (ticket: eval).
+- **Paths (decision 12):** `docs/*.md` is copied into the build output of the Api (and later Eval) project.
+  Relative `Knowledge` paths are resolved against `AppContext.BaseDirectory`, so API, tests and Eval find the same
+  files regardless of the working directory. Consequence: after editing `docs/` the project must be rebuilt
+  (`dotnet run` does that automatically). Absolute paths are used as they are.
 
 ## 13. Authentication to Azure OpenAI
 
@@ -369,6 +379,11 @@ Structured `ILogger` messages (no string interpolation):
 
 No test calls Azure. AI dependencies are replaced by fakes (a deterministic fake `IEmbeddingGenerator`
 and a scripted fake `IChatClient`).
+
+**Test host (decision 14):** `CloudKnowledgeApiFactory` registers the fakes **by default**, so indexing on startup
+never reaches Azure. The fake embedding generator hashes the words of a text into a 1536-dimension vector:
+deterministic, and texts sharing words get similar vectors, so search tests produce meaningful rankings.
+Tests that verify the real DI registration use a separate factory without fakes and never call the clients.
 
 Unit tests (minimum):
 - `MarkdownChunker`: H2 splitting, intro section, long section split at paragraphs, code blocks never split, prefix format, stable IDs.
@@ -427,6 +442,11 @@ The project is done when all six steps work against a real Azure OpenAI resource
 | 9 | Separate Api / Application / Infrastructure projects | Folders in one project; single Core library | Author's choice; DI extension shared by Api and Eval |
 | 10 | Index on startup, readiness gate, hash-keyed embedding cache incl. model name | No cache; manual only | Fast restarts, no repeated cost, mirrors CloudStore's own health model |
 | 11 | .NET 10, Minimal APIs, M.E.AI, `DefaultAzureCredential`, `text-embedding-3-small`, TopK 5 | — | Current, idiomatic defaults |
+| 12 | `docs/` copied to build output, relative paths resolved against `AppContext.BaseDirectory` (R1) | Paths relative to content root or working directory | Same behaviour in API, tests and Eval; content root differs between `dotnet run` and tests |
+| 13 | Re-index clears and refills the collection; 503 while `Indexing` (R2) | Build a new collection in the background and swap | Re-index takes about a second with the cache; simpler and consistent with the 503 rule |
+| 14 | Test host uses fake AI clients by default (R3) | Opt-in fakes per test | Startup indexing would otherwise call Azure from every integration test |
+| 15 | Accept the preview InMemory connector (R4) | Own cosine store; wait for a stable release | Stable abstraction, connector isolated in Infrastructure and swappable |
+| 16 | OpenAPI + Scalar UI arrive with `/search` in M2 (R5) | Add in M1 | First endpoint worth documenting |
 
 ---
 

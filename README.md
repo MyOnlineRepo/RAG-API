@@ -210,7 +210,7 @@ flowchart TB
     subgraph api["CloudKnowledge.Api — HTTP-Endpoints"]
         direction LR
         Health["/health/live<br/>/health/ready"]
-        Index["POST /index<br/>(M2)"]
+        Index["POST /index<br/>+ Indexieren beim Start<br/>(M2)"]
         Search["GET /search<br/>(M2)"]
         Ask["POST /ask<br/>(M3)"]
     end
@@ -218,34 +218,38 @@ flowchart TB
     subgraph app["CloudKnowledge.Application — Kernlogik, kein Azure"]
         direction LR
         State["IndexState"]
+        Indexer["KnowledgeIndexer<br/>+ MarkdownChunker<br/>(M2) · <i>siehe 3.2</i>"]
+        KSearch["KnowledgeSearch<br/>(M2)"]
         Rag["RagService<br/>MinScore-Schwelle · Prompt · Zitate<br/>(M3)"]
-        Chunker["MarkdownChunker<br/>(M2)"]
     end
 
     subgraph infra["CloudKnowledge.Infrastructure — spricht mit der Außenwelt"]
         direction LR
+        Files["Dokumentquelle docs/<br/>+ Embedding-Cache<br/>(M2)"]
         Store[("In-Memory-<br/>Vector-Store (M2)")]
         Clients["Azure-OpenAI-Clients<br/>Chat · Embeddings"]
-        Indexer["Indexing-Service<br/>+ Embedding-Cache (M2)<br/><i>siehe 3.2</i>"]
     end
 
     AOAI["Azure OpenAI"]
 
     User --> api
     Health --> State
-    Ask --> Rag
-    Search --> Store
     Index --> Indexer
+    Search --> KSearch
+    Ask --> Rag
+    Indexer --> Files
     Indexer --> Store
     Indexer --> Clients
-    Rag --> Store
+    KSearch --> Store
+    KSearch --> Clients
+    Rag --> KSearch
     Rag --> Clients
     Clients --> AOAI
 
     classDef built fill:#d4edda,stroke:#2e7d32,color:#1b3d1f
     classDef planned fill:#eeeeee,stroke:#9e9e9e,color:#555555,stroke-dasharray: 4 3
     class Health,State,Clients built
-    class Search,Ask,Index,Chunker,Rag,Indexer,Store planned
+    class Index,Search,Ask,Indexer,KSearch,Rag,Files,Store planned
 ```
 
 ### 3.2 So wird der Index aufgebaut (M2)
