@@ -1,5 +1,6 @@
 using Azure.AI.OpenAI;
 using Azure.Identity;
+using CloudKnowledge.Application.Chunking;
 using CloudKnowledge.Application.Configuration;
 using CloudKnowledge.Application.Indexing;
 using Microsoft.Extensions.AI;
@@ -13,7 +14,7 @@ namespace CloudKnowledge.Infrastructure;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers validated options, the shared index state and the Azure OpenAI backed AI clients.
+    /// Registers validated options, the shared index state, the chunker and the Azure OpenAI backed AI clients.
     /// Authentication uses <see cref="DefaultAzureCredential"/> (Entra ID); no API keys.
     /// Nothing here calls Azure at startup — the first request happens when a client is used.
     /// </summary>
@@ -26,6 +27,7 @@ public static class ServiceCollectionExtensions
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IndexState>();
+        services.AddSingleton<MarkdownChunker>();
 
         services.AddSingleton(sp =>
         {
