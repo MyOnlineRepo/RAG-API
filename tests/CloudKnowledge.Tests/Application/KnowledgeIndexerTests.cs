@@ -11,7 +11,9 @@ namespace CloudKnowledge.Tests.Application;
 
 public sealed class KnowledgeIndexerTests : IDisposable
 {
-    private readonly CloudKnowledgeApiFactory _factory = new();
+    // No indexing on startup: each test controls the runs itself.
+    private readonly CloudKnowledgeApiFactory _factory =
+        new CloudKnowledgeApiFactory().WithSetting("Knowledge:IndexOnStartup", "false");
 
     private static readonly int ExpectedChunks = CountChunksOfRealDocs();
 
@@ -120,7 +122,7 @@ public sealed class KnowledgeIndexerTests : IDisposable
 
     private static int CountChunksOfRealDocs()
     {
-        using var factory = new CloudKnowledgeApiFactory();
+        using var factory = new CloudKnowledgeApiFactory().WithSetting("Knowledge:IndexOnStartup", "false");
         var chunker = factory.Services.GetRequiredService<MarkdownChunker>();
         return Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "docs"), "*.md")
             .Sum(file => chunker.Chunk(new MarkdownDocument(Path.GetFileName(file), File.ReadAllText(file))).Count);

@@ -69,8 +69,11 @@ public class CloudKnowledgeApiFactory : WebApplicationFactory<Program>
 
 /// <summary>
 /// Keeps the real, lazily created Azure OpenAI clients. Only for DI-registration tests, which never call the clients.
+/// Indexing on startup is off, otherwise the host would call Azure.
 /// </summary>
 public sealed class RealAiClientsApiFactory : CloudKnowledgeApiFactory
 {
+    public RealAiClientsApiFactory() => WithSetting("Knowledge:IndexOnStartup", "false");
+
     protected override bool UseFakeAiClients => false;
 }

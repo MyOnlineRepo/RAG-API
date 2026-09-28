@@ -27,7 +27,7 @@ Done when: demo step 2 (SPEC §18) works against real Azure OpenAI; chunker and 
 | M2-02 | [Markdown chunker](M2-02-markdown-chunker.md) | — | done |
 | M2-03 | [Document source and embedding cache](M2-03-document-source-and-embedding-cache.md) | M2-01 | done |
 | M2-04 | [Vector store and knowledge indexer](M2-04-vector-store-and-indexer.md) | M2-02, M2-03 | done |
-| M2-05 | [Indexing on startup and `POST /index`](M2-05-startup-indexing-and-index-endpoint.md) | M2-04 | open |
+| M2-05 | [Indexing on startup and `POST /index`](M2-05-startup-indexing-and-index-endpoint.md) | M2-04 | done |
 | M2-06 | [`GET /search`, OpenAPI and Scalar](M2-06-search-endpoint-and-openapi.md) | M2-05 | open |
 
 M2-01 and M2-02 are independent. The last criterion of M2-06 (demo step 2 against real Azure) needs the author.

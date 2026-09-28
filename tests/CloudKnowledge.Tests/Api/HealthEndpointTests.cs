@@ -8,7 +8,9 @@ namespace CloudKnowledge.Tests.Api;
 public sealed class HealthEndpointTests : IDisposable
 {
     // A fresh host per test: IndexState is a singleton, so tests must not share it.
-    private readonly CloudKnowledgeApiFactory _factory = new();
+    // No indexing on startup: these tests set the state themselves.
+    private readonly CloudKnowledgeApiFactory _factory =
+        new CloudKnowledgeApiFactory().WithSetting("Knowledge:IndexOnStartup", "false");
 
     private IndexState IndexState => _factory.Services.GetRequiredService<IndexState>();
 
