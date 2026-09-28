@@ -34,9 +34,26 @@ Register all three in `AddCloudKnowledge()`.
 
 ## Acceptance criteria
 
-- [ ] `FileDocumentSource` loads the nine docs in name order; missing folder → clear exception with the path.
-- [ ] Cache: miss then hit; survives a new instance (file round-trip); a different `EmbeddingDeployment` yields a
+- [x] `FileDocumentSource` loads the nine docs in name order; missing folder → clear exception with the path.
+- [x] Cache: miss then hit; survives a new instance (file round-trip); a different `EmbeddingDeployment` yields a
       miss for the same text; corrupt file → empty cache, warning logged, no exception.
-- [ ] `EmbeddingService`: first call embeds all (one generator call, `EmbeddedNew = n`); second call embeds none
+- [x] `EmbeddingService`: first call embeds all (one generator call, `EmbeddedNew = n`); second call embeds none
       (`FromCache = n`, zero generator calls); mixed call only sends the missing texts; output order = input order.
-- [ ] `.cache/` (or the configured cache file) is still git-ignored.
+- [x] `.cache/` (or the configured cache file) is still git-ignored.
+
+## Implementation notes
+
+- `IDocumentSource`, `IEmbeddingCache` and `EmbeddingService` live in `Application/Indexing` next to `IndexState`;
+  `FileDocumentSource`, `JsonEmbeddingCache` in `Infrastructure/Knowledge` next to `KnowledgePaths`.
+- Cache file format: a JSON object `{ "<sha256 hex>": [floats…] }` — readable, ~1–2 MB for the knowledge base.
+- "Unreadable" is interpreted as invalid JSON (`JsonException`) → warning + empty cache. I/O errors such as
+  missing permissions still throw, because hiding them would recompute everything silently.
+- Missing texts are not de-duplicated: the knowledge base produces unique `TextToEmbed` values anyway.
+  `FromCache + EmbeddedNew` always equals the number of input texts.
+- The cache is saved only when something new was embedded.
+- **Test host addition:** `CloudKnowledgeApiFactory` gives every instance its own temp cache file
+  (`EmbeddingCachePath`, deleted on dispose), so tests never see embeddings from earlier runs once indexing
+  runs on startup (M2-05). `FakeEmbeddingGenerator.Calls` records each generator call; new fakes
+  `FakeEmbeddingCache` and `ListLogger<T>`.
+- Consequence of decision 12: with the default relative path the cache lives in the build output
+  (`bin/…/.cache/embeddings.json`). It is ignored by git via `bin/` and `.cache/` (checked with `git check-ignore`).

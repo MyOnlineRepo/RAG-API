@@ -21,7 +21,11 @@ public class CloudKnowledgeApiFactory : WebApplicationFactory<Program>
         ["AzureOpenAI:EmbeddingDeployment"] = "test-embedding",
     };
 
-    private readonly Dictionary<string, string?> _settings = new(ValidSettings);
+    private readonly Dictionary<string, string?> _settings = new(ValidSettings)
+    {
+        // Every test host gets its own cache file, so tests never see embeddings from earlier runs.
+        ["Knowledge:EmbeddingCachePath"] = Path.Combine(Path.GetTempPath(), "cloudknowledge-tests", $"{Guid.NewGuid()}.json"),
+    };
 
     public FakeChatClient ChatClient { get; } = new();
 
@@ -36,6 +40,8 @@ public class CloudKnowledgeApiFactory : WebApplicationFactory<Program>
         return this;
     }
 
+    public string EmbeddingCachePath => _settings["Knowledge:EmbeddingCachePath"]!;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -48,6 +54,15 @@ public class CloudKnowledgeApiFactory : WebApplicationFactory<Program>
                 services.AddSingleton<IChatClient>(ChatClient);
                 services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(EmbeddingGenerator);
             });
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (File.Exists(EmbeddingCachePath))
+        {
+            File.Delete(EmbeddingCachePath);
         }
     }
 }

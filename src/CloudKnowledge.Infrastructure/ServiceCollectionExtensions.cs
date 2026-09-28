@@ -3,6 +3,7 @@ using Azure.Identity;
 using CloudKnowledge.Application.Chunking;
 using CloudKnowledge.Application.Configuration;
 using CloudKnowledge.Application.Indexing;
+using CloudKnowledge.Infrastructure.Knowledge;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +15,7 @@ namespace CloudKnowledge.Infrastructure;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers validated options, the shared index state, the chunker and the Azure OpenAI backed AI clients.
+    /// Registers validated options, the shared index state, the indexing building blocks (chunker, document source, embedding cache) and the Azure OpenAI backed AI clients.
     /// Authentication uses <see cref="DefaultAzureCredential"/> (Entra ID); no API keys.
     /// Nothing here calls Azure at startup — the first request happens when a client is used.
     /// </summary>
@@ -28,6 +29,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IndexState>();
         services.AddSingleton<MarkdownChunker>();
+        services.AddSingleton<IDocumentSource, FileDocumentSource>();
+        services.AddSingleton<IEmbeddingCache, JsonEmbeddingCache>();
+        services.AddSingleton<EmbeddingService>();
 
         services.AddSingleton(sp =>
         {

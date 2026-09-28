@@ -10,6 +10,9 @@ public sealed class FakeEmbeddingGenerator(Func<string, float[]> embed) : IEmbed
 
     public List<string> Inputs { get; } = [];
 
+    /// <summary>One entry per <see cref="GenerateAsync"/> call with the texts of that call.</summary>
+    public List<IReadOnlyList<string>> Calls { get; } = [];
+
     /// <summary>
     /// Bag-of-words embedding: every word is hashed into one of 1536 dimensions, the vector is L2-normalised.
     /// Deterministic, and texts that share words get a high cosine similarity — enough for realistic search tests.
@@ -39,8 +42,11 @@ public sealed class FakeEmbeddingGenerator(Func<string, float[]> embed) : IEmbed
     public Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
         IEnumerable<string> values, EmbeddingGenerationOptions? options = null, CancellationToken cancellationToken = default)
     {
+        var batch = values.ToList();
+        Calls.Add(batch);
+
         var embeddings = new GeneratedEmbeddings<Embedding<float>>();
-        foreach (var value in values)
+        foreach (var value in batch)
         {
             Inputs.Add(value);
             embeddings.Add(new Embedding<float>(embed(value)));
