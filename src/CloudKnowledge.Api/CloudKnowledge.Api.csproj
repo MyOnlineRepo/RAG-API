@@ -1,8 +1,16 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup>  <UserSecretsId>43ff6a7a-b984-43e5-ab2a-615147a2db4d</UserSecretsId>
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <UserSecretsId>43ff6a7a-b984-43e5-ab2a-615147a2db4d</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CloudKnowledge.Infrastructure\CloudKnowledge.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- The knowledge base travels with the build output, so Knowledge:DocsPath = "docs" works from any working directory. -->
+  <ItemGroup>
+    <Content Include="..\..\docs\*.md" LinkBase="docs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

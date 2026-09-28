@@ -1,12 +1,16 @@
+using CloudKnowledge.Tests.Fakes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudKnowledge.Tests;
 
 /// <summary>
-/// Test host with valid, fake configuration. Never talks to Azure: the endpoint is syntactically valid
-/// and the AI clients are created lazily, so no request leaves the process unless a test uses them.
+/// Test host with valid, fake configuration and fake AI clients. Never talks to Azure: the chat client and the
+/// embedding generator are replaced by <see cref="ChatClient"/> and <see cref="EmbeddingGenerator"/>.
 /// </summary>
 public class CloudKnowledgeApiFactory : WebApplicationFactory<Program>
 {
@@ -19,6 +23,13 @@ public class CloudKnowledgeApiFactory : WebApplicationFactory<Program>
 
     private readonly Dictionary<string, string?> _settings = new(ValidSettings);
 
+    public FakeChatClient ChatClient { get; } = new();
+
+    public FakeEmbeddingGenerator EmbeddingGenerator { get; } = FakeEmbeddingGenerator.BagOfWords();
+
+    /// <summary><c>false</c> keeps the real Azure OpenAI clients (see <see cref="RealAiClientsApiFactory"/>).</summary>
+    protected virtual bool UseFakeAiClients => true;
+
     public CloudKnowledgeApiFactory WithSetting(string key, string? value)
     {
         _settings[key] = value;
@@ -29,5 +40,22 @@ public class CloudKnowledgeApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
         builder.ConfigureAppConfiguration(config => config.AddInMemoryCollection(_settings));
+
+        if (UseFakeAiClients)
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddSingleton<IChatClient>(ChatClient);
+                services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(EmbeddingGenerator);
+            });
+        }
     }
+}
+
+/// <summary>
+/// Keeps the real, lazily created Azure OpenAI clients. Only for DI-registration tests, which never call the clients.
+/// </summary>
+public sealed class RealAiClientsApiFactory : CloudKnowledgeApiFactory
+{
+    protected override bool UseFakeAiClients => false;
 }

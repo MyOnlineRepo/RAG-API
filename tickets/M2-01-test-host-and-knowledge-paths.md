@@ -31,10 +31,18 @@ reach Azure once indexing runs on startup.
 
 ## Acceptance criteria
 
-- [ ] After `dotnet build`, the Api output folder and the test output folder both contain `docs/` with the nine files.
-- [ ] Unit tests for the resolver: relative → below `AppContext.BaseDirectory`; absolute → unchanged.
-- [ ] Integration test: resolved `DocsPath` of the test host contains exactly the nine `.md` files.
-- [ ] Unit test: `BagOfWords()` returns 1536 dimensions, unit length, the same vector for the same text, and a higher
+- [x] After `dotnet build`, the Api output folder and the test output folder both contain `docs/` with the nine files.
+- [x] Unit tests for the resolver: relative → below `AppContext.BaseDirectory`; absolute → unchanged.
+- [x] Integration test: resolved `DocsPath` of the test host contains exactly the nine `.md` files.
+- [x] Unit test: `BagOfWords()` returns 1536 dimensions, unit length, the same vector for the same text, and a higher
       cosine similarity for "HTTP 503 after deployment" vs. "503 deployment" than vs. "upload blob storage".
-- [ ] Default `CloudKnowledgeApiFactory` resolves the fakes; the M1-02 registration tests still pass using the real-clients factory.
-- [ ] `IndexOnStartup` is bound and defaults to `true`.
+- [x] Default `CloudKnowledgeApiFactory` resolves the fakes; the M1-02 registration tests still pass using the real-clients factory.
+- [x] `IndexOnStartup` is bound and defaults to `true`.
+
+## Implementation notes
+
+- `RealAiClientsApiFactory` derives from `CloudKnowledgeApiFactory` and only switches the fakes off
+  (`UseFakeAiClients => false`), so both share settings and `WithSetting`.
+- `BagOfWords()` splits at non-letter/non-digit characters and hashes words with FNV-1a, because
+  `string.GetHashCode()` is randomised per process. `BagOfWordsVector(text)` is public so tests can compare vectors directly.
+- The docs reach the test output transitively through the project reference to the Api; no extra item in the test project.
